@@ -1,0 +1,39 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model inRegister {
+  id         Int    @id @default(autoincrement())
+  regNo      Int    @unique
+  date       String
+  party      String
+  item       String
+  qty        Int
+  department String
+  deptRef    String?
+  remark     String?
+  others     String?
+}
+
+model Party {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model Item {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
