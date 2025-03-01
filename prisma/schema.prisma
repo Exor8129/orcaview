@@ -37,3 +37,7 @@ model Department {
   name String @unique
 }
 
+model Courier {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
