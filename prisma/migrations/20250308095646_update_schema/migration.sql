@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Party" ALTER COLUMN "code" DROP NOT NULL,
+ALTER COLUMN "state" DROP NOT NULL;

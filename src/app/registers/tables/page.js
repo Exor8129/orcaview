@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Form,
   Input,
@@ -10,6 +11,7 @@ import {
   DatePicker,
   Space,
   Modal,
+  Switch,
 } from "antd";
 import dayjs from "dayjs";
 
@@ -18,7 +20,7 @@ export default function Tables() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [parties, setParties] = useState([]);
-  const [courier,setCourier]=useState([]);
+  const [courier, setCourier] = useState([]);
   const [items, setItems] = useState([]); // Fix: Define items state
   const [departments, setDepartments] = useState([]); // Fix: Define departments state
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -28,31 +30,48 @@ export default function Tables() {
   const [filters, setFilters] = useState({
     date: null,
     party: null,
-    courier:null,
+    courier: null,
     item: null,
     department: null,
     deptRef: null,
   });
 
+  const router = useRouter(); // Use Next.js router for navigation
+
+  const goToPreviousPage = () => {
+    router.back(); // Go back to the previous page in Next.js
+  };
+
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [partyRes, itemRes, deptRes, registerRes,courierRes] = await Promise.all([
-          fetch("/api/party"), // Fetch parties
-          fetch("/api/item"), // Fetch items
-          fetch("/api/department"), // Fetch departments
-          fetch("/api/register"), // Fetch register entries
-          fetch("/api/courier"), // Fetch courier
+        const [partyRes, itemRes, deptRes, registerRes, courierRes] =
+          await Promise.all([
+            fetch("/api/party"), // Fetch parties
+            fetch("/api/item"), // Fetch items
+            fetch("/api/department"), // Fetch departments
+            fetch("/api/register"), // Fetch register entries
+            fetch("/api/courier"), // Fetch courier
+          ]);
 
-        ]);
-
-        if (!partyRes.ok || !itemRes.ok || !deptRes.ok || !registerRes.ok || !courierRes.ok) {
+        if (
+          !partyRes.ok ||
+          !itemRes.ok ||
+          !deptRes.ok ||
+          !registerRes.ok ||
+          !courierRes.ok
+        ) {
           throw new Error("Failed to fetch dropdown data");
         }
 
-        const [partyData, itemData, deptData, registerData,courierData] = await Promise.all(
-          [partyRes.json(), itemRes.json(), deptRes.json(), registerRes.json(),courierRes.json()]
-        );
+        const [partyData, itemData, deptData, registerData, courierData] =
+          await Promise.all([
+            partyRes.json(),
+            itemRes.json(),
+            deptRes.json(),
+            registerRes.json(),
+            courierRes.json(),
+          ]);
 
         // Find the latest regNo from the database
         const latestRegNo = registerData.length
@@ -83,9 +102,11 @@ export default function Tables() {
     try {
       const response = await fetch("/api/register");
       const result = await response.json();
+      console.log("Raw API Response:", result); // Check the API data
 
       // Sort data by regNo in ascending order
       const sortedData = result.sort((a, b) => a.regNo - b.regNo);
+      console.log("status=", sortedData.map((item) => item.complete));
 
       setData(sortedData);
       setFilteredData(sortedData);
@@ -135,11 +156,16 @@ export default function Tables() {
         date: dayjs().format("DD-MM-YYYY"),
       };
 
-      // Save the new entry
+      // Ensure courier is passed as just the name string
+      const courierName = values.courier; // Ensure this is a string
+
       const saveResponse = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedValues),
+        body: JSON.stringify({
+          ...updatedValues,
+          courier: courierName, // Pass only the courier name as a string
+        }),
       });
 
       const savedEntry = await saveResponse.json();
@@ -169,9 +195,24 @@ export default function Tables() {
     setIsModalVisible(false);
   };
 
+  const handleDelete = (regNo) => {
+    setData(data.filter((entry) => entry.regNo !== regNo));
+    setFilteredData(filteredData.filter((entry) => entry.regNo !== regNo));
+  };
+
+  const handleEdit = (entry) => {
+    form.setFieldsValue(entry);
+  };
+
+  const handleCompletionChange = async (regNo, isClosed) => {
+    console.log("Updating Reg No =", regNo, " to Status =", isClosed);
+};
+
+  
   const columns = [
     { title: "Reg No.", dataIndex: "regNo", key: "regNo" },
     { title: "Date", dataIndex: "date", key: "date" },
+    { title: "Courier", dataIndex: "courier", key: "courier" },
     { title: "Party", dataIndex: "party", key: "party" },
     { title: "Item", dataIndex: "item", key: "item" },
     { title: "Qty/Boxes", dataIndex: "qty", key: "qty" },
@@ -179,10 +220,44 @@ export default function Tables() {
     { title: "Dept Ref No.", dataIndex: "deptRef", key: "deptRef" },
     { title: "Remark", dataIndex: "remark", key: "remark" },
     { title: "Others", dataIndex: "others", key: "others" },
+    {
+      title: "Completion",
+      dataIndex: "complete",
+      key: "complete",
+      render: (text, record) => (
+          <Select
+              value={record.complete === "closed" ? "Closed" : "Open"} // Convert DB value to dropdown label
+              onChange={(value) => handleCompletionChange(record.id, value.toLowerCase())} // Convert back to lowercase string for DB
+              style={{ width: 100 }}
+              options={[
+                  { label: "Open", value: "Open" },
+                  { label: "Closed", value: "Closed" },
+              ]}
+          />
+      ),
+  },
+    {
+      title: "Action",
+      key: "action",
+      render: (_, record) => (
+        <Space>
+          <Button onClick={() => handleEdit(record)} type="primary">
+            Edit
+          </Button>
+          <Button onClick={() => handleDelete(record.regNo)} danger>
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
   ];
 
   return (
     <div className="p-6 min-h-screen bg-gray-100">
+      {/* Button to Go to Previous Page */}
+      <Button onClick={goToPreviousPage} className="mt-4">
+        Go to Previous Page
+      </Button>
       <h1 className="text-2xl font-bold mb-4">Form & Table</h1>
 
       <Input
@@ -197,20 +272,18 @@ export default function Tables() {
             <Input value={regNo} disabled />
           </Form.Item>
 
-          <Form.Item 
-          label="Courier"
-          name="courier"
-          rules={[{ required: true, message: "Select a courier" }]}
-
+          <Form.Item
+            label="Courier"
+            name="courier"
+            rules={[{ required: true, message: "Select a courier" }]}
           >
-             <Select placeholder="Select Courier">
+            <Select placeholder="Select Courier">
               {courier.map((party, index) => (
                 <Select.Option key={index} value={party.name}>
                   {party.name}
                 </Select.Option>
               ))}
             </Select>
-
           </Form.Item>
 
           <Form.Item
@@ -226,7 +299,14 @@ export default function Tables() {
             name="party"
             rules={[{ required: true, message: "Select a party" }]}
           >
-            <Select placeholder="Select Party">
+            <Select
+              showSearch
+              placeholder="Select Party"
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                option?.children?.toLowerCase().includes(input.toLowerCase())
+              }
+            >
               {parties.map((party, index) => (
                 <Select.Option key={index} value={party.name}>
                   {party.name}
@@ -240,7 +320,14 @@ export default function Tables() {
             name="item"
             rules={[{ required: true, message: "Select an item" }]}
           >
-            <Select placeholder="Select Item">
+            <Select
+              showSearch
+              placeholder="Select Item"
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                option?.children?.toLowerCase().includes(input.toLowerCase())
+              }
+            >
               {items.map((item, index) => (
                 <Select.Option key={index} value={item.name}>
                   {item.name}
@@ -272,7 +359,7 @@ export default function Tables() {
           </Form.Item>
 
           <Form.Item label="Department Reference No." name="deptRef">
-            <Input placeholder="Enter Reference No." />
+            <Input disabled />
           </Form.Item>
 
           <Form.Item label="Remark" name="remark">
@@ -294,6 +381,7 @@ export default function Tables() {
         dataSource={filteredData}
         columns={columns}
         pagination={{ pageSize: 5 }}
+        rowKey="regNo" // Make sure the table rows are uniquely identified
       />
 
       {/* Modal for Adding New Party */}

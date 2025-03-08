@@ -2,6 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -10,27 +11,47 @@ datasource db {
 }
 
 model inRegister {
-  id         Int    @id @default(autoincrement())
-  regNo      Int    @unique
-  date       String
-  party      String
-  item       String
-  qty        Int
-  department String
-  deptRef    String?
-  remark     String?
-  others     String?
+  id        Int     @id @default(autoincrement())
+  regNo     Int     @unique
+  date      DateTime
+  courier   String?
+  party     String?
+  item      String?
+  qty       Int
+  department String?
+  deptRef   String?
+  remark    String?
+  others    String?
+  complete  String?  @default("Open") // ✅ Change `Boolean` to `Status` ENUM
 }
 
 model Party {
-  id   Int    @id @default(autoincrement())
-  name String @unique
+  id       Int     @id @default(autoincrement())
+  name     String
+  type     String?
+  address  String?
+  contact  String?
+  gst      String?
+  state    String?
+  code     Int?
+  dlno     String?
+  credit   Float?
 }
 
+
+
 model Item {
-  id   Int    @id @default(autoincrement())
-  name String @unique
+  id      Int     @id @default(autoincrement())
+  name    String  @unique
+  hsn     Int?
+  min     Int?
+  vendor  String?  // Assuming vendor is a name or ID (change type if needed)
+  rate    Float?
+  tax     Float?
 }
+
+
+
 
 model Department {
   id   Int    @id @default(autoincrement())

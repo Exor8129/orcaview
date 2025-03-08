@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 export async function GET(req) {
   try {
     const records = await prisma.inRegister.findMany();
+    console.log("Fetched Records:", records);
     return Response.json(records);
   } catch (error) {
     return Response.json({ error: "Failed to fetch data", details: error.message }, { status: 500 });
@@ -25,7 +26,8 @@ export async function POST(req) {
     const savedEntry = await prisma.inRegister.create({
       data: {
         regNo: newRegNo, // Use the updated regNo
-        date: data.date,
+        date: new Date(data.date), // ✅ Ensures correct format
+        courier: data.courier,
         party: data.party,
         item: data.item,
         qty: Number(data.qty),
@@ -33,6 +35,7 @@ export async function POST(req) {
         deptRef: data.deptRef,
         remark: data.remark,
         others: data.others,
+        complete:"Open",
       },
     });
 

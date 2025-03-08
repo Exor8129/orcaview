@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Item" ADD COLUMN     "hsn" INTEGER,
+ADD COLUMN     "min" INTEGER,
+ADD COLUMN     "rate" DOUBLE PRECISION,
+ADD COLUMN     "tax" DOUBLE PRECISION,
+ADD COLUMN     "vendor" TEXT;
