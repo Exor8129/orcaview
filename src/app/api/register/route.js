@@ -1,16 +1,23 @@
 import { PrismaClient } from "@prisma/client";
-
+import dayjs from "dayjs";
 const prisma = new PrismaClient();
 
 export async function GET(req) {
   try {
     const records = await prisma.inRegister.findMany();
-    console.log("Fetched Records:", records);
-    return Response.json(records);
+
+    // Format Date in YYYY-MM-DD without time
+    const formattedRecords = records.map(record => ({
+      ...record,
+      date: dayjs(record.date).format("YYYY-MM-DD"), // ✅ Correct and clean format
+    }));
+
+    return Response.json(formattedRecords);
   } catch (error) {
     return Response.json({ error: "Failed to fetch data", details: error.message }, { status: 500 });
   }
 }
+
 
 export async function POST(req) {
   try {

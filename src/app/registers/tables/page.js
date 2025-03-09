@@ -12,6 +12,7 @@ import {
   Space,
   Modal,
   Switch,
+  Popconfirm,
 } from "antd";
 import dayjs from "dayjs";
 
@@ -24,6 +25,7 @@ export default function Tables() {
   const [items, setItems] = useState([]); // Fix: Define items state
   const [departments, setDepartments] = useState([]); // Fix: Define departments state
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isModalVisible2, setIsModalVisible2] = useState(false);
   const [newParty, setNewParty] = useState("");
   const [regNo, setRegNo] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -106,7 +108,10 @@ export default function Tables() {
 
       // Sort data by regNo in ascending order
       const sortedData = result.sort((a, b) => a.regNo - b.regNo);
-      console.log("status=", sortedData.map((item) => item.complete));
+      console.log(
+        "status=",
+        sortedData.map((item) => item.complete)
+      );
 
       setData(sortedData);
       setFilteredData(sortedData);
@@ -149,31 +154,37 @@ export default function Tables() {
       const latestRegNo = result.length
         ? Math.max(...result.map((entry) => entry.regNo)) + 1
         : 1;
-
+  
       const updatedValues = {
         ...values,
         regNo: latestRegNo,
-        date: dayjs().format("DD-MM-YYYY"),
+        date: dayjs(values.date, "DD-MM-YYYY").toDate(), // ✅ Keeps it as a Date object
       };
-
+  
       // Ensure courier is passed as just the name string
-      const courierName = values.courier; // Ensure this is a string
-
+      const courierName = values.courier;
+  
       const saveResponse = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...updatedValues,
-          courier: courierName, // Pass only the courier name as a string
+          courier: courierName,
         }),
       });
-
+  
       const savedEntry = await saveResponse.json();
-
+  
       if (saveResponse.ok) {
-        setData([...data, savedEntry]);
-        setFilteredData([...filteredData, savedEntry]); // Update filteredData
-        setRegNo(latestRegNo + 1); // Update regNo for next entry
+        const formattedEntry = {
+          ...savedEntry,
+          date: dayjs(savedEntry.date).format("DD-MM-YYYY"), // ✅ Convert to correct format before updating state
+        };
+  
+        setData([...data, formattedEntry]);
+        setFilteredData([...filteredData, formattedEntry]); // ✅ Update filteredData
+        setRegNo(latestRegNo + 1);
+  
         form.resetFields();
         form.setFieldsValue({
           regNo: latestRegNo + 1,
@@ -186,6 +197,7 @@ export default function Tables() {
       console.error("Error:", error);
     }
   };
+  
 
   const handleAddParty = () => {
     if (newParty && !parties.includes(newParty)) {
@@ -204,11 +216,39 @@ export default function Tables() {
     form.setFieldsValue(entry);
   };
 
-  const handleCompletionChange = async (regNo, isClosed) => {
-    console.log("Updating Reg No =", regNo, " to Status =", isClosed);
-};
-
+  const handleCompletionChange = async (value, regNo) => {
+    Modal.confirm({
+      title: "Are you sure?",
+      content: `Do you want to mark this as ${value}?`,
+      okText: "Yes",
+      cancelText: "No",
+      onOk: async () => {
+        try {
+          // Update the backend
+          const response = await fetch(`/api/register/${regNo}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ complete: value }),
+          });
   
+          if (response.ok) {
+            // Update the local state to reflect the change
+            const updatedData = data.map((entry) => 
+              entry.regNo === regNo ? { ...entry, complete: value } : entry
+            );
+            setData(updatedData);
+            setFilteredData(updatedData);
+          }
+        } catch (error) {
+          console.error("Error updating completion status:", error);
+        }
+      },
+    });
+  };
+  
+  
+  
+
   const columns = [
     { title: "Reg No.", dataIndex: "regNo", key: "regNo" },
     { title: "Date", dataIndex: "date", key: "date" },
@@ -225,17 +265,20 @@ export default function Tables() {
       dataIndex: "complete",
       key: "complete",
       render: (text, record) => (
-          <Select
-              value={record.complete === "closed" ? "Closed" : "Open"} // Convert DB value to dropdown label
-              onChange={(value) => handleCompletionChange(record.id, value.toLowerCase())} // Convert back to lowercase string for DB
-              style={{ width: 100 }}
-              options={[
-                  { label: "Open", value: "Open" },
-                  { label: "Closed", value: "Closed" },
-              ]}
-          />
+        <Select
+          value={record.complete}
+          onChange={(value) => handleCompletionChange(value, record.regNo)} // Use onChange and pass regNo
+          style={{ width: 100 }}
+          options={[
+            { label: "Open", value: "Open" },
+            { label: "Closed", value: "Closed" },
+          ]}
+        />
       ),
-  },
+    }
+    
+    
+    ,
     {
       title: "Action",
       key: "action",
@@ -289,9 +332,10 @@ export default function Tables() {
           <Form.Item
             label="Date"
             name="date"
-            initialValue={dayjs().format("DD-MM-YYYY")}
+            initialValue={dayjs()} // ✅ Ensures a valid Day.js object
           >
-            <Input value={dayjs().format("DD-MM-YYYY")} disabled />
+            <DatePicker format="DD-MM-YYYY" disabled value={dayjs()} />{" "}
+            {/* ✅ Explicitly set value */}
           </Form.Item>
 
           <Form.Item
